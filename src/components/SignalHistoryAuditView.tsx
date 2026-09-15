@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Database,
   Download,
@@ -57,6 +57,16 @@ export function SignalHistoryAuditView({
   // Search query
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [recordSavedNotification, setRecordSavedNotification] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
+
+  // Auto-sync whenever a new trade setup is saved to localStorage
+  useEffect(() => {
+    const handleSignalSaved = () => {
+      setRefreshTrigger((prev) => prev + 1);
+    };
+    window.addEventListener('zeher-signal-saved', handleSignalSaved);
+    return () => window.removeEventListener('zeher-signal-saved', handleSignalSaved);
+  }, []);
 
   // Active filters object
   const filters: SignalFilterParams = useMemo(() => {
@@ -94,7 +104,7 @@ export function SignalHistoryAuditView({
       );
     }
     return recs;
-  }, [filters, searchQuery]);
+  }, [filters, searchQuery, refreshTrigger]);
 
   // Compute Metrics
   const metrics = useMemo(() => {
@@ -107,6 +117,10 @@ export function SignalHistoryAuditView({
     if (activeResult.quantitativeSignal) {
       signalHistoryDb.recordSignal(activeResult.quantitativeSignal);
       setRecordSavedNotification(`Logged ${activeResult.quantitativeSignal.signalId} to audit database`);
+      setTimeout(() => setRecordSavedNotification(null), 3500);
+    } else {
+      const rec = signalHistoryDb.recordFromAnalysis(activeResult);
+      setRecordSavedNotification(`Logged ${rec.signalId} to audit database`);
       setTimeout(() => setRecordSavedNotification(null), 3500);
     }
   };
@@ -146,30 +160,30 @@ export function SignalHistoryAuditView({
   return (
     <div className="flex flex-col gap-6 max-w-7xl mx-auto pb-12 font-mono">
       {/* Top Banner: Institutional Audit Identity */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-5 bg-[#0b101b] border border-slate-800 rounded-xl">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-5 bg-neutral-900/60 border border-neutral-800/80 backdrop-blur-md rounded-2xl shadow-xl">
         <div className="flex items-center gap-3.5">
           <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-cyan-600 p-0.5 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <div className="w-full h-full bg-slate-950 rounded-[6px] flex items-center justify-center">
-              <Database className="w-5 h-5 text-indigo-400" />
+            <div className="w-full h-full bg-neutral-950 rounded-[6px] flex items-center justify-center">
+              <Database className="w-5 h-5 text-cyan-400" />
             </div>
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold text-white tracking-wide">
+              <h2 className="text-base font-bold text-neutral-100 tracking-wide">
                 HISTORICAL SIGNAL PERFORMANCE DATABASE
               </h2>
-              <span className="px-2 py-0.5 text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 rounded uppercase">
+              <span className="px-2 py-0.5 text-[10px] font-bold bg-cyan-950/80 text-cyan-300 border border-cyan-500/40 rounded uppercase">
                 Audited & Measured
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-neutral-400 mt-0.5">
               Empirical multi-exchange trade setup tracking indexed by Asset, Timeframe, Strategy, Score, Regime, and Risk/Reward.
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 w-full md:w-auto">
-          {activeResult && activeResult.quantitativeSignal && (
+          {activeResult && (
             <button
               onClick={handleSaveActiveSignal}
               className="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-xs rounded-lg transition-all shadow-md"
@@ -181,7 +195,7 @@ export function SignalHistoryAuditView({
 
           <button
             onClick={handleExportCsv}
-            className="flex items-center gap-1.5 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 rounded-lg text-xs transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 bg-neutral-950/80 hover:bg-neutral-800 text-neutral-200 border border-neutral-800 rounded-lg text-xs transition-colors"
             title="Download CSV Audit Log"
           >
             <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
@@ -190,7 +204,7 @@ export function SignalHistoryAuditView({
 
           <button
             onClick={handleExportJson}
-            className="flex items-center gap-1.5 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 rounded-lg text-xs transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 bg-neutral-950/80 hover:bg-neutral-800 text-neutral-200 border border-neutral-800 rounded-lg text-xs transition-colors"
             title="Download JSON Machine-Readable Ledger"
           >
             <FileCode className="w-3.5 h-3.5 text-cyan-400" />
@@ -207,7 +221,7 @@ export function SignalHistoryAuditView({
       )}
 
       {/* Institutional Compliance Notice */}
-      <div className="p-3.5 bg-amber-950/20 border border-amber-500/30 rounded-lg flex items-start gap-3">
+      <div className="p-3.5 bg-neutral-900/60 border border-amber-500/30 backdrop-blur-md rounded-xl flex items-start gap-3">
         <Info className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
         <div className="text-[11px] text-amber-200/90 leading-relaxed">
           <span className="font-bold text-amber-300">QUANTITATIVE INTEGRITY MANDATE: </span>
@@ -217,45 +231,45 @@ export function SignalHistoryAuditView({
 
       {/* Dynamic Performance KPI Metrics Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <div className="p-3.5 bg-[#0b101b] border border-slate-800 rounded-lg">
-          <div className="text-[10px] text-slate-400 uppercase font-semibold">Audited Signals</div>
+        <div className="p-3.5 bg-neutral-900/60 border border-neutral-800/80 backdrop-blur-md rounded-xl">
+          <div className="text-[10px] text-neutral-400 uppercase font-semibold">Audited Signals</div>
           <div className="text-xl font-bold text-white mt-1">{metrics.totalSignals}</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">{metrics.evaluatedTrades} trades / {metrics.noTradeCount} held</div>
+          <div className="text-[10px] text-neutral-400 mt-0.5">{metrics.evaluatedTrades} trades / {metrics.noTradeCount} held</div>
         </div>
 
-        <div className="p-3.5 bg-[#0b101b] border border-slate-800 rounded-lg">
+        <div className="p-3.5 bg-neutral-900/60 border border-neutral-800/80 backdrop-blur-md rounded-xl">
           <div className="text-[10px] text-emerald-400 uppercase font-semibold">TP1 Hit Rate</div>
           <div className="text-xl font-bold text-emerald-400 mt-1">{metrics.tp1HitRatePct}%</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">{metrics.tp1Hits} hits vs {metrics.invalidationCount} stops</div>
+          <div className="text-[10px] text-neutral-400 mt-0.5">{metrics.tp1Hits} hits vs {metrics.invalidationCount} stops</div>
         </div>
 
-        <div className="p-3.5 bg-[#0b101b] border border-slate-800 rounded-lg">
+        <div className="p-3.5 bg-neutral-900/60 border border-neutral-800/80 backdrop-blur-md rounded-xl">
           <div className="text-[10px] text-cyan-400 uppercase font-semibold">Avg Realized R:R</div>
           <div className="text-xl font-bold text-cyan-400 mt-1">1:{metrics.averageRealizedRR.toFixed(2)}</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">TP2: {metrics.tp2Hits} | TP3: {metrics.tp3Hits}</div>
+          <div className="text-[10px] text-neutral-400 mt-0.5">TP2: {metrics.tp2Hits} | TP3: {metrics.tp3Hits}</div>
         </div>
 
-        <div className="p-3.5 bg-[#0b101b] border border-slate-800 rounded-lg">
+        <div className="p-3.5 bg-neutral-900/60 border border-neutral-800/80 backdrop-blur-md rounded-xl">
           <div className="text-[10px] text-indigo-400 uppercase font-semibold">Profit Factor</div>
           <div className="text-xl font-bold text-indigo-300 mt-1">{metrics.profitFactor.toFixed(2)}</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Gross Win / Loss R</div>
+          <div className="text-[10px] text-neutral-400 mt-0.5">Gross Win / Loss R</div>
         </div>
 
-        <div className="p-3.5 bg-[#0b101b] border border-slate-800 rounded-lg">
+        <div className="p-3.5 bg-neutral-900/60 border border-neutral-800/80 backdrop-blur-md rounded-xl">
           <div className="text-[10px] text-purple-400 uppercase font-semibold">Expectancy (R)</div>
           <div className="text-xl font-bold text-purple-300 mt-1">+{metrics.empiricalExpectancyR.toFixed(2)}R</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Statistical edge per setup</div>
+          <div className="text-[10px] text-neutral-400 mt-0.5">Statistical edge per setup</div>
         </div>
 
-        <div className="p-3.5 bg-[#0b101b] border border-slate-800 rounded-lg">
-          <div className="text-[10px] text-slate-400 uppercase font-semibold">Avg Duration</div>
-          <div className="text-xl font-bold text-slate-200 mt-1">{metrics.avgDurationMinutes}m</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Time to target resolution</div>
+        <div className="p-3.5 bg-neutral-900/60 border border-neutral-800/80 backdrop-blur-md rounded-xl">
+          <div className="text-[10px] text-neutral-400 uppercase font-semibold">Avg Duration</div>
+          <div className="text-xl font-bold text-neutral-200 mt-1">{metrics.avgDurationMinutes}m</div>
+          <div className="text-[10px] text-neutral-400 mt-0.5">Time to target resolution</div>
         </div>
       </div>
 
       {/* Multi-Dimensional Filter Toolbar */}
-      <div className="p-4 bg-[#0b101b] border border-slate-800 rounded-xl flex flex-col gap-3.5">
+      <div className="p-4 bg-neutral-900/60 border border-neutral-800/80 backdrop-blur-md rounded-xl flex flex-col gap-3.5">
         <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
           <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
             <Filter className="w-3.5 h-3.5 text-cyan-400" />
@@ -413,10 +427,10 @@ export function SignalHistoryAuditView({
       </div>
 
       {/* Signal Performance Table */}
-      <div className="bg-[#0b101b] border border-slate-800 rounded-xl overflow-hidden shadow-xl">
+      <div className="bg-neutral-900/60 border border-neutral-800/80 backdrop-blur-md rounded-2xl overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-900/90 text-slate-400 uppercase text-[10px] border-b border-slate-800">
+            <thead className="bg-neutral-950/80 text-neutral-400 uppercase text-[10px] border-b border-neutral-800">
               <tr>
                 <th className="py-3 px-4">Signal ID</th>
                 <th className="py-3 px-4">Asset / TF</th>

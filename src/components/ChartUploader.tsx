@@ -451,7 +451,7 @@ export const ChartUploader = memo(function ChartUploader({
           {isLoading ? (
             <>
               <RefreshCw className="w-4 h-4 animate-spin text-cyan-300" />
-              <span>Analyzing Institutional Order Flow ({selectedTimeframe})...</span>
+              <span>Analyzing Institutional Order Flow ({selectedTimeframe.toUpperCase()})...</span>
             </>
           ) : isCompressing ? (
             <>
@@ -461,7 +461,7 @@ export const ChartUploader = memo(function ChartUploader({
           ) : (
             <>
               <Sparkles className="w-4 h-4 text-cyan-300" />
-              <span>ANALYZE INSTITUTIONAL ORDER FLOW [{selectedTicker} • {selectedTimeframe}]</span>
+              <span>ANALYZE INSTITUTIONAL ORDER FLOW ({selectedTicker} - {selectedTimeframe.toUpperCase()})</span>
             </>
           )}
         </button>

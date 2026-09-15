@@ -12,9 +12,12 @@ import { SignalHistoryAuditView } from './components/SignalHistoryAuditView';
 import { BrokerWebhookLogsView } from './components/BrokerWebhookLogsView';
 import { LivePriceAlertBanner } from './components/LivePriceAlertBanner';
 import { LiveExecutionTicketModal } from './components/LiveExecutionTicketModal';
+import { InteractiveTradeSignalModal } from './components/InteractiveTradeSignalModal';
+import { HotkeysIndicator } from './components/HotkeysIndicator';
 import { RevenueCatProvider } from './context/RevenueCatContext';
 import { RevenueCatPaywallModal } from './components/RevenueCatPaywallModal';
 import { RevenueCatCustomerCenterModal } from './components/RevenueCatCustomerCenterModal';
+import { signalHistoryDb } from './services/signalHistoryDatabase';
 import {
   ChartAnalysisResult,
   SampleChart,
@@ -47,6 +50,7 @@ function ZeherAppContent() {
   const [isWebhookModalOpen, setIsWebhookModalOpen] = useState(false);
   const [isTradeMemoModalOpen, setIsTradeMemoModalOpen] = useState(false);
   const [isExecutionModalOpen, setIsExecutionModalOpen] = useState(false);
+  const [isInteractiveSignalModalOpen, setIsInteractiveSignalModalOpen] = useState(false);
 
   // Timeframe execution filter state (default 15m)
   const [selectedTimeframe, setSelectedTimeframe] = useState<string>('15m');
@@ -181,6 +185,9 @@ function ZeherAppContent() {
       error: null,
     }));
 
+    // Open the interactive trade signal modal immediately
+    setIsInteractiveSignalModalOpen(true);
+
     // Safety guardrail 3-second AbortController timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
@@ -207,6 +214,9 @@ function ZeherAppContent() {
         setSelectedTicker(resultData.ticker);
       }
 
+      // Persist generated trade setup ticket to localStorage audit database
+      signalHistoryDb.recordFromAnalysis(resultData, undefined, currentLivePrice || undefined);
+
       setAnalysisState({
         isLoading: false,
         error: null,
@@ -224,6 +234,9 @@ function ZeherAppContent() {
         selectedTimeframe,
         currentLivePrice || undefined
       );
+
+      // Persist fallback trade setup ticket to localStorage audit database
+      signalHistoryDb.recordFromAnalysis(fallbackResult, undefined, currentLivePrice || undefined);
 
       setAnalysisState({
         isLoading: false,
@@ -280,6 +293,60 @@ function ZeherAppContent() {
       };
     });
   };
+
+  // Global Keyboard Shortcuts (Space, Tab, Esc, R)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      const isInput =
+        activeEl &&
+        (activeEl.tagName === 'INPUT' ||
+          activeEl.tagName === 'TEXTAREA' ||
+          activeEl.tagName === 'SELECT' ||
+          (activeEl as HTMLElement).isContentEditable);
+
+      // Esc: Close all open modals immediately
+      if (e.key === 'Escape') {
+        setIsInteractiveSignalModalOpen(false);
+        setIsExecutionModalOpen(false);
+        setIsWebhookModalOpen(false);
+        setIsTradeMemoModalOpen(false);
+        setIsApiDocsOpen(false);
+        return;
+      }
+
+      // Do not trigger hotkeys if user is currently typing in an input
+      if (isInput) return;
+
+      // Space: Trigger order flow analysis
+      if (e.code === 'Space') {
+        e.preventDefault();
+        handleRunAnalysis();
+        return;
+      }
+
+      // Tab: Cycle dashboard views (Workspace -> Compliance -> Signal Data -> Workspace)
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        setCurrentTab((prev) => {
+          if (prev === 'workspace') return 'compliance';
+          if (prev === 'compliance') return 'signal_data';
+          return 'workspace';
+        });
+        return;
+      }
+
+      // R: Jump to Risk & Portfolio Compliance
+      if ((e.key === 'r' || e.key === 'R') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        setCurrentTab('compliance');
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentTab, selectedImage, selectedTicker, selectedTimeframe, currentLivePrice]);
 
   return (
     <div className="min-h-screen bg-[#07090e] text-slate-100 flex flex-col selection:bg-cyan-500/30 selection:text-cyan-200">
@@ -394,6 +461,8 @@ function ZeherAppContent() {
                   selectedTimeframe={selectedTimeframe}
                   onPriceTick={handlePriceTick}
                   currentLivePrice={currentLivePrice}
+                  onOpenSignalTicket={() => setIsExecutionModalOpen(true)}
+                  onOpenInteractiveModal={() => setIsInteractiveSignalModalOpen(true)}
                 />
               </div>
             )}
@@ -425,17 +494,32 @@ function ZeherAppContent() {
           <RiskComplianceView
             activeResult={analysisState.result}
             onOpenTradeMemoModal={() => setIsTradeMemoModalOpen(true)}
+            currentLivePrice={currentLivePrice || 76094.67}
           />
         )}
 
-        {/* TAB 3: SIGNAL DATABASE & HISTORICAL AUDIT VIEW */}
-        {(currentTab === 'signal_audit' || (currentTab as string) === 'webhook_logs') && (
+        {/* TAB 3: SIGNAL DATA & AUDIT HISTORY VIEW */}
+        {(currentTab === 'signal_data' || currentTab === 'signal_audit' || (currentTab as string) === 'webhook_logs') && (
           <SignalHistoryAuditView
             activeResult={analysisState.result}
             onOpenSignalModal={() => setIsExecutionModalOpen(true)}
           />
         )}
       </main>
+
+      {/* Interactive Signal Overlay Modal */}
+      <InteractiveTradeSignalModal
+        isOpen={isInteractiveSignalModalOpen}
+        onClose={() => setIsInteractiveSignalModalOpen(false)}
+        result={analysisState.result}
+        ticker={selectedTicker}
+        timeframe={selectedTimeframe}
+        currentLivePrice={currentLivePrice || 76094.67}
+        onOpenSignalTicket={() => {
+          setIsInteractiveSignalModalOpen(false);
+          setIsExecutionModalOpen(true);
+        }}
+      />
 
       {/* API Documentation Modal */}
       <ApiDocumentationModal
@@ -476,6 +560,27 @@ function ZeherAppContent() {
 
       {/* RevenueCat Customer Center Modal */}
       <RevenueCatCustomerCenterModal />
+
+      {/* Floating Hotkeys Indicator & Command Sheet */}
+      <HotkeysIndicator
+        onTriggerAnalysis={handleRunAnalysis}
+        onCycleTab={() => {
+          setCurrentTab((prev) => {
+            if (prev === 'workspace') return 'compliance';
+            if (prev === 'compliance') return 'signal_data';
+            return 'workspace';
+          });
+        }}
+        onJumpToCompliance={() => setCurrentTab('compliance')}
+        onCloseModals={() => {
+          setIsInteractiveSignalModalOpen(false);
+          setIsExecutionModalOpen(false);
+          setIsWebhookModalOpen(false);
+          setIsTradeMemoModalOpen(false);
+          setIsApiDocsOpen(false);
+        }}
+        activeTab={currentTab}
+      />
     </div>
   );
 }

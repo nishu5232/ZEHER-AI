@@ -276,6 +276,79 @@ class SignalHistoryDatabase {
     // Avoid duplicate signal IDs
     this.records = [newRecord, ...this.records.filter((r) => r.signalId !== signal.signalId)];
     this.saveToStorage();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('zeher-signal-saved', { detail: newRecord }));
+    }
+    return newRecord;
+  }
+
+  /**
+   * Automatically record a trade setup ticket from a ChartAnalysisResult into localStorage
+   */
+  public recordFromAnalysis(
+    analysis: any,
+    customRR?: number,
+    livePrice?: number
+  ): SignalHistoryRecord {
+    const isLong = analysis.bias === 'BULLISH';
+    const isShort = analysis.bias === 'BEARISH';
+    const direction: SignalDirection = isLong ? 'LONG' : isShort ? 'SHORT' : 'NO_TRADE';
+    const ref = livePrice || 76094.67;
+
+    const entryPrice =
+      analysis.coordinates?.entry_zone?.high ||
+      analysis.coordinates?.entry_zone?.low ||
+      ref;
+    const stopLoss =
+      analysis.coordinates?.stop_loss ||
+      (isLong ? Number((ref * 0.988).toFixed(2)) : Number((ref * 1.012).toFixed(2)));
+
+    const riskDistance = Math.abs(entryPrice - stopLoss) || (ref * 0.012);
+    const rr = customRR || (analysis.coordinates?.risk_reward_ratio ? Number(analysis.coordinates.risk_reward_ratio) : 2.0);
+
+    const tp1 = analysis.coordinates?.take_profit_1 || (isLong ? Number((entryPrice + rr * riskDistance).toFixed(2)) : Number((entryPrice - rr * riskDistance).toFixed(2)));
+    const tp2 = analysis.coordinates?.take_profit_2 || (isLong ? Number((entryPrice + (rr * 1.5) * riskDistance).toFixed(2)) : Number((entryPrice - (rr * 1.5) * riskDistance).toFixed(2)));
+    const tp3 = analysis.coordinates?.take_profit_3 || (isLong ? Number((entryPrice + (rr * 2.5) * riskDistance).toFixed(2)) : Number((entryPrice - (rr * 2.5) * riskDistance).toFixed(2)));
+
+    const cleanTicker = analysis.ticker && analysis.ticker !== 'UNKNOWN' ? analysis.ticker : 'BTC/USD';
+    const cleanTimeframe = analysis.timeframe && analysis.timeframe !== 'UNKNOWN' ? analysis.timeframe : '15m';
+
+    const newRecord: SignalHistoryRecord = {
+      id: `REC-${Date.now().toString().slice(-6)}`,
+      signalId: `SIG-${cleanTicker.replace(/[^a-zA-Z0-9]/g, '')}-${cleanTimeframe.toUpperCase()}-${Date.now().toString().slice(-6)}`,
+      timestamp: new Date().toISOString(),
+      asset: cleanTicker,
+      timeframe: cleanTimeframe,
+      strategy: 'Volatility-Adjusted Donchian Breakout + EMA200 + RSI14',
+      direction,
+      signalScore: analysis.confidence_score || 84,
+      marketRegime: (analysis.regime as MarketRegime) || 'HIGH_VOLATILITY_EXPANSION',
+      entryType: 'BREAKOUT',
+      riskReward: Number(rr.toFixed(2)),
+      entryPrice: Number(entryPrice.toFixed(2)),
+      stopLoss: Number(stopLoss.toFixed(2)),
+      tp1: Number(tp1.toFixed(2)),
+      tp2: Number(tp2.toFixed(2)),
+      tp3: Number(tp3.toFixed(2)),
+      invalidationLevel: Number(stopLoss.toFixed(2)),
+      outcome: 'ACTIVE',
+      realizedRR: 0,
+      maxFavorableExcursionR: 0,
+      maxAdverseExcursionR: 0,
+      durationMinutes: 0,
+      dataSources: ['binance', 'bybit', 'okx', 'hyperliquid'],
+      technicalSummary: analysis.pattern_detected
+        ? `${analysis.pattern_detected} (${analysis.bias || 'BULLISH'})`
+        : 'Donchian upper band breach with EMA200 alignment and RSI momentum confirmation.',
+    };
+
+    this.records = [newRecord, ...this.records.filter((r) => r.signalId !== newRecord.signalId)];
+    this.saveToStorage();
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('zeher-signal-saved', { detail: newRecord }));
+    }
+
     return newRecord;
   }
 

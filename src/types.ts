@@ -141,7 +141,7 @@ export interface SignalHistoryRecord {
   technicalSummary: string;
 }
 
-export type WorkspaceTab = 'workspace' | 'signal_audit' | 'compliance' | 'api_docs';
+export type WorkspaceTab = 'workspace' | 'signal_data' | 'signal_audit' | 'compliance' | 'api_docs';
 
 export type PropFirmPreset = 'ftmo' | 'funding_pips' | 'topstep' | 'custom' | 'off';
 

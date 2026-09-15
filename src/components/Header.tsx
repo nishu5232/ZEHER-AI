@@ -230,24 +230,24 @@ export function Header({
             onClick={() => setCurrentTab('compliance')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
               currentTab === 'compliance'
-                ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 font-bold'
+                ? 'bg-neutral-900/80 text-emerald-300 border border-emerald-500/40 font-bold backdrop-blur-md'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
             }`}
           >
-            <Shield className="w-3.5 h-3.5" />
+            <Shield className="w-3.5 h-3.5 text-emerald-400" />
             <span>Risk & Portfolio Compliance</span>
           </button>
 
           <button
-            onClick={() => setCurrentTab('signal_audit' as any)}
+            onClick={() => setCurrentTab('signal_data')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
-              currentTab === 'signal_audit' || (currentTab as string) === 'webhook_logs'
-                ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/40 font-bold'
+              currentTab === 'signal_data' || currentTab === 'signal_audit' || (currentTab as string) === 'webhook_logs'
+                ? 'bg-neutral-900/80 text-cyan-300 border border-cyan-500/40 font-bold backdrop-blur-md'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
             }`}
           >
-            <Database className="w-3.5 h-3.5" />
-            <span>Signal Database & Audit</span>
+            <Database className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Signal Data</span>
           </button>
 
           <button

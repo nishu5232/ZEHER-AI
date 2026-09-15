@@ -1,6 +1,7 @@
 import React, { useState, memo } from 'react';
 import { ChartAnalysisResult, Coordinates } from '../types';
 import { LiveTradingViewChart } from './LiveTradingViewChart';
+import { OrderFlowSignalOverlayPanel } from './OrderFlowSignalOverlayPanel';
 import {
   Activity,
   Image as ImageIcon,
@@ -19,6 +20,8 @@ interface ChartOverlayStageProps {
   selectedTimeframe?: string;
   onPriceTick?: (price: number) => void;
   currentLivePrice?: number | null;
+  onOpenSignalTicket?: () => void;
+  onOpenInteractiveModal?: () => void;
 }
 
 export const ChartOverlayStage = memo(function ChartOverlayStage({
@@ -31,6 +34,8 @@ export const ChartOverlayStage = memo(function ChartOverlayStage({
   selectedTimeframe = '15m',
   onPriceTick,
   currentLivePrice,
+  onOpenSignalTicket,
+  onOpenInteractiveModal,
 }: ChartOverlayStageProps) {
   const [chartMode, setChartMode] = useState<'live' | 'image'>('live');
 
@@ -86,6 +91,16 @@ export const ChartOverlayStage = memo(function ChartOverlayStage({
           </span>
         </div>
       </div>
+
+      {/* Institutional Order Flow Signal Engine Overlay Panel */}
+      {analysis && (
+        <OrderFlowSignalOverlayPanel
+          analysis={analysis}
+          onOpenSignalTicket={onOpenSignalTicket}
+          onOpenInteractiveModal={onOpenInteractiveModal}
+          currentLivePrice={currentLivePrice}
+        />
+      )}
 
       {/* Chart Canvas */}
       {chartMode === 'live' ? (
