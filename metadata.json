@@ -1,0 +1,6 @@
+{
+  "name": "Zeher AI — Financial Chart Analyzer",
+  "description": "Real-time cryptocurrency market intelligence and quantitative trade signal platform delivering 19-parameter institutional setups with multi-exchange confirmation and AI explainability.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
